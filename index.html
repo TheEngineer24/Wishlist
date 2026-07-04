@@ -257,6 +257,14 @@
   }
   .claim-btn.taken:hover{ background:transparent; color:#9C917A; }
 
+  .claim-btn.blocked{
+    border-color: #C7BBA0;
+    color: #9C917A;
+    cursor:not-allowed;
+    background: #EFE9D8;
+  }
+  .claim-btn.blocked:hover{ background: #EFE9D8; color:#9C917A; }
+
   /* ---------- Admin View ---------- */
   .admin-banner{
     background: var(--gold);
@@ -289,6 +297,7 @@
     padding: 12px 14px;
     border-top: 1px solid #E3D6B8;
     font-size: 13.5px;
+    vertical-align: middle;
   }
 
   .admin-table .claimed-tag{
@@ -297,6 +306,39 @@
   }
   .admin-table .open-tag{
     color: #B08D4A;
+  }
+
+  .block-btn{
+    padding: 6px 14px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1.5px solid #A13B2C;
+    background: transparent;
+    color: #A13B2C;
+    white-space:nowrap;
+    transition: all 0.15s;
+  }
+  .block-btn:hover{ background: #A13B2C; color:#fff; }
+
+  .block-btn.is-blocked{
+    border-color: var(--emerald);
+    color: var(--emerald);
+  }
+  .block-btn.is-blocked:hover{ background: var(--emerald); color:#fff; }
+
+  .blocked-badge{
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #A13B2C;
+    background: #F8ECE6;
+    border: 1px solid #E3C3B8;
+    padding: 3px 8px;
+    border-radius: 10px;
+    margin-top: 6px;
+    display: inline-block;
   }
 
   .refresh-btn{
@@ -413,6 +455,7 @@
     .entry-card{ padding: 36px 24px; }
     .item-card{ flex-direction:column; align-items:flex-start; }
     .claim-btn{ align-self:flex-end; }
+    .admin-table{ font-size: 12px; }
   }
 </style>
 </head>
@@ -485,6 +528,11 @@ let isAdmin = false;
 let claims = {};
 let unsubscribe = null;
 
+// Reserved field name in the shared Firestore doc used to store the list
+// of item ids that the admin has blocked from further claiming.
+const BLOCKED_FIELD = '_blocked';
+const ADMIN_PASSCODE = 'temi-2026'; // change this to whatever passcode you want
+
 const items = [
   // Beauty / Skincare
   { id: 'sunscreen', category: 'Beauty & Skincare', name: 'Water-based sunscreen', note: 'High SPF — daily use' },
@@ -555,7 +603,19 @@ window.enterApp = async function(){
   }
 
   currentUser = name;
-  isAdmin = name.toLowerCase() === 'admintemi';
+  const wantsAdmin = name.toLowerCase() === 'admintemi';
+
+  if (wantsAdmin){
+    const code = prompt('Enter the admin passcode:');
+    if (code !== ADMIN_PASSCODE){
+      alert('Incorrect passcode. You will be signed in as a regular guest instead.');
+      isAdmin = false;
+    } else {
+      isAdmin = true;
+    }
+  } else {
+    isAdmin = false;
+  }
 
   document.getElementById('entry-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'block';
@@ -581,6 +641,16 @@ window.enterApp = async function(){
 window.toggleClaim = async function(itemId){
   const currentList = claims[itemId] || [];
   const alreadyIn = currentList.includes(currentUser);
+  const blocked = (claims[BLOCKED_FIELD] || []).includes(itemId);
+
+  // Guard against claiming something the admin has blocked. The button is
+  // already disabled in the UI for this case, but we double-check here in
+  // case of a stale render or a fast double-click.
+  if (blocked && !alreadyIn){
+    alert("This item has been marked as no longer needed — pick something else from the list!");
+    return;
+  }
+
   try{
     if (alreadyIn){
       await updateDoc(docRef, { [itemId]: arrayRemove(currentUser) });
@@ -594,26 +664,47 @@ window.toggleClaim = async function(itemId){
   // No manual re-render needed — onSnapshot picks up the change automatically
 };
 
+window.toggleBlock = async function(itemId){
+  if (!isAdmin) return;
+  const blocked = (claims[BLOCKED_FIELD] || []).includes(itemId);
+  try{
+    if (blocked){
+      await updateDoc(docRef, { [BLOCKED_FIELD]: arrayRemove(itemId) });
+    } else {
+      await updateDoc(docRef, { [BLOCKED_FIELD]: arrayUnion(itemId) });
+    }
+  }catch(e){
+    console.error('Could not update block state', e);
+    alert("Couldn't update the block state. Check your connection and try again.");
+  }
+  // No manual re-render needed — onSnapshot picks up the change automatically
+};
+
 function renderApp(){
   const main = document.getElementById('main-content');
+  const blockedIds = claims[BLOCKED_FIELD] || [];
 
   if (isAdmin){
     let rows = items.map(item => {
       const pickers = claims[item.id] || [];
+      const blocked = blockedIds.includes(item.id);
       const status = pickers.length
         ? '<span class="claimed-tag">✓ ' + pickers.map(escapeHtml).join(', ') + '</span>'
         : '<span class="open-tag">Open</span>';
+      const blockLabel = blocked ? 'Unblock' : 'Block';
+      const blockBtnClass = blocked ? 'block-btn is-blocked' : 'block-btn';
       return `<tr>
         <td>${item.category}</td>
-        <td>${item.name}${item.note ? ' <span style="color:#9C917A;">— '+item.note+'</span>' : ''}</td>
+        <td>${item.name}${item.note ? ' <span style="color:#9C917A;">— '+item.note+'</span>' : ''}${blocked ? ' <span class="blocked-badge">Blocked</span>' : ''}</td>
         <td>${status}</td>
+        <td><button class="${blockBtnClass}" onclick="toggleBlock('${item.id}')">${blockLabel}</button></td>
       </tr>`;
     }).join('');
 
     main.innerHTML = `
-      <p class="intro-line">Live view of every claim — updates automatically as people pick, no refresh needed.</p>
+      <p class="intro-line">Live view of every claim — updates automatically as people pick, no refresh needed. Block an item to stop new people from claiming it; anyone who already claimed it keeps their pick.</p>
       <table class="admin-table">
-        <thead><tr><th>Category</th><th>Item</th><th>Status</th></tr></thead>
+        <thead><tr><th>Category</th><th>Item</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
@@ -641,15 +732,31 @@ function renderApp(){
       const pickers = claims[item.id] || [];
       const mine = pickers.includes(currentUser);
       const otherCount = pickers.length - (mine ? 1 : 0);
+      const blocked = blockedIds.includes(item.id);
       let btnClass = 'claim-btn';
       let btnLabel = "I've got this";
       let cardClass = 'item-card';
+      let disabledAttr = '';
 
-      if (mine){ btnClass += ' active'; btnLabel = '✓ You picked this'; cardClass += ' claimed-by-me'; }
+      if (mine){
+        btnClass += ' active';
+        btnLabel = '✓ You picked this';
+        cardClass += ' claimed-by-me';
+      } else if (blocked){
+        btnClass += ' blocked';
+        btnLabel = 'No longer needed';
+        cardClass += ' claimed-by-other';
+        disabledAttr = 'disabled';
+      }
 
       let countNote = '';
       if (otherCount > 0){
         countNote = `<div class="note" style="color:var(--emerald); margin-top:4px;">${otherCount} other${otherCount === 1 ? ' person has' : ' people have'} also picked this</div>`;
+      }
+
+      let blockedNote = '';
+      if (blocked && !mine){
+        blockedNote = `<div class="blocked-badge">No longer needed</div>`;
       }
 
       html += `<div class="${cardClass}">
@@ -657,8 +764,9 @@ function renderApp(){
           <div class="name">${item.name}</div>
           ${item.note ? '<div class="note">'+item.note+'</div>' : ''}
           ${countNote}
+          ${blockedNote}
         </div>
-        <button class="${btnClass}" onclick="toggleClaim('${item.id}')">${btnLabel}</button>
+        <button class="${btnClass}" onclick="toggleClaim('${item.id}')" ${disabledAttr}>${btnLabel}</button>
       </div>`;
     });
 
@@ -718,4 +826,4 @@ document.getElementById('username-input').addEventListener('keydown', (e) => {
 </script>
 
 </body>
-      </html>
+</html>
