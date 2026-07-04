@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Temi's Birthday Wishlist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.2/confetti.browser.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Jost:wght@300;400;500;600&display=swap');
+
+  :root{
+    --cream: #F3EBD9;
+    --tan: #C9A876;
+    --tan-dark: #A9835A;
+    --emerald: #0F5C41;
+    --emerald-deep: #0A3D2B;
+    --gold: #C9A227;
+    --ink: #2B2118;
+    --ink-soft: #5A4E3D;
+    --card: #FBF7EE;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    font-family:'Jost', sans-serif;
+    background: linear-gradient(180deg, var(--cream) 0%, #EADFC4 100%);
+    color: var(--ink);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  h1,h2,h3, .brand{
+    font-family:'Playfair Display', serif;
+  }
+
+  /* ---------- Entry Screen ---------- */
+  #entry-screen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+    position:relative;
+  }
+
+  .entry-card{
+    background: var(--card);
+    border: 1px solid var(--tan);
+    border-radius: 4px;
+    padding: 48px 40px;
+    max-width: 420px;
+    width:100%;
+    text-align:center;
+    box-shadow: 0 20px 60px rgba(10,61,43,0.15);
+    position:relative;
+    z-index:2;
+  }
+
+  .entry-eyebrow{
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--emerald);
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+
+  .entry-card h1{
+    font-size: 34px;
+    color: var(--emerald-deep);
+    margin-bottom: 8px;
+    line-height:1.2;
+  }
+
+  .entry-card p{
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin-bottom: 28px;
+    line-height:1.5;
+  }
+
+  .entry-divider{
+    width:48px;
+    height:2px;
+    background: var(--gold);
+    margin: 0 auto 28px;
+  }
+
+  input#username-input{
+    width:100%;
+    padding: 14px 16px;
+    border: 1px solid var(--tan);
+    border-radius: 2px;
+    font-family:'Jost', sans-serif;
+    font-size: 15px;
+    background: #fff;
+    color: var(--ink);
+    margin-bottom: 18px;
+    outline:none;
+    transition: border-color 0.2s;
+  }
+  input#username-input:focus{
+    border-color: var(--emerald);
+  }
+
+  button{
+    cursor:pointer;
+    font-family:'Jost', sans-serif;
+  }
+
+  .btn-primary{
+    width:100%;
+    padding: 14px;
+    background: var(--emerald);
+    color: var(--cream);
+    border: none;
+    border-radius: 2px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn-primary:hover{ background: var(--emerald-deep); }
+  .btn-primary:active{ transform: scale(0.98); }
+
+  .entry-error{
+    color: #A13B2C;
+    font-size: 13px;
+    margin-top: 12px;
+    display:none;
+  }
+
+  /* ---------- Main App ---------- */
+  #app-screen{ display:none; min-height:100vh; }
+
+  .topbar{
+    background: var(--emerald-deep);
+    color: var(--cream);
+    padding: 20px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+
+  .topbar h1{
+    font-size: 22px;
+    color: var(--cream);
+    font-weight:600;
+  }
+
+  .topbar .who{
+    font-size: 13px;
+    color: var(--tan);
+    letter-spacing: 0.5px;
+  }
+
+  .topbar .who b{ color: var(--gold); }
+
+  main{
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 36px 20px 80px;
+  }
+
+  .intro-line{
+    text-align:center;
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin-bottom: 36px;
+    line-height:1.6;
+  }
+
+  .category-block{ margin-bottom: 40px; }
+
+  .category-header{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom: 18px;
+  }
+
+  .category-header h2{
+    font-size: 20px;
+    color: var(--emerald-deep);
+    white-space:nowrap;
+  }
+
+  .category-line{
+    flex:1;
+    height:1px;
+    background: var(--tan);
+  }
+
+  .item-card{
+    background: var(--card);
+    border: 1px solid #E3D6B8;
+    border-radius: 3px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 14px;
+    transition: border-color 0.2s;
+  }
+
+  .item-card.claimed-by-me{
+    border-color: var(--emerald);
+    background: #F0F5EE;
+  }
+
+  .item-card.claimed-by-other{
+    opacity: 0.55;
+  }
+
+  .item-text .name{
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+
+  .item-text .note{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  .claim-btn{
+    flex-shrink:0;
+    padding: 9px 16px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border: 1.5px solid var(--emerald);
+    background: transparent;
+    color: var(--emerald);
+    letter-spacing: 0.3px;
+    transition: all 0.15s;
+    white-space:nowrap;
+  }
+  .claim-btn:hover{ background: var(--emerald); color: var(--cream); }
+
+  .claim-btn.active{
+    background: var(--emerald);
+    color: var(--cream);
+  }
+
+  .claim-btn.taken{
+    border-color: #C7BBA0;
+    color: #9C917A;
+    cursor:not-allowed;
+  }
+  .claim-btn.taken:hover{ background:transparent; color:#9C917A; }
+
+  /* ---------- Admin View ---------- */
+  .admin-banner{
+    background: var(--gold);
+    color: var(--emerald-deep);
+    text-align:center;
+    padding: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .admin-table{
+    width:100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid #E3D6B8;
+  }
+
+  .admin-table th{
+    text-align:left;
+    padding: 12px 14px;
+    background: var(--emerald-deep);
+    color: var(--cream);
+    font-weight:500;
+    font-size:13px;
+    letter-spacing:0.3px;
+  }
+
+  .admin-table td{
+    padding: 12px 14px;
+    border-top: 1px solid #E3D6B8;
+    font-size: 13.5px;
+  }
+
+  .admin-table .claimed-tag{
+    color: var(--emerald);
+    font-weight:600;
+  }
+  .admin-table .open-tag{
+    color: #B08D4A;
+  }
+
+  .refresh-btn{
+    display:block;
+    margin: 20px auto 0;
+    padding: 10px 22px;
+    background: transparent;
+    border: 1.5px solid var(--emerald);
+    color: var(--emerald);
+    border-radius: 20px;
+    font-size: 13px;
+    letter-spacing:0.5px;
+  }
+  .refresh-btn:hover{ background: var(--emerald); color:var(--cream); }
+
+  .loading{ text-align:center; padding: 40px; color: var(--ink-soft); font-size:14px; }
+
+  .hair-note{
+    background: #F5EFDD;
+    border: 1px solid var(--tan);
+    border-left: 4px solid var(--gold);
+    border-radius: 2px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .hair-note.warn{
+    border-left-color: #A13B2C;
+    color: #7A3324;
+    background: #F8ECE6;
+  }
+  .hair-note.ok{
+    border-left-color: var(--emerald);
+    color: var(--emerald-deep);
+    background: #EEF4EF;
+  }
+
+  .finish-btn{
+    display:block;
+    margin: 30px auto 0;
+    padding: 14px 32px;
+    background: var(--emerald-deep);
+    color: var(--cream);
+    border: none;
+    border-radius: 24px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .finish-btn:hover{ background: var(--emerald); }
+
+  .modal-overlay{
+    display:none;
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(10,61,43,0.55);
+    align-items:center; justify-content:center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .modal-overlay.show{ display:flex; }
+
+  .modal-card{
+    background: var(--card);
+    border: 1px solid var(--tan);
+    border-radius: 4px;
+    max-width: 460px;
+    width:100%;
+    padding: 36px 32px;
+    text-align:center;
+    max-height: 85vh;
+    overflow-y:auto;
+  }
+
+  .modal-card h2{
+    color: var(--emerald-deep);
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .modal-card .modal-sub{
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 22px;
+  }
+
+  .modal-list{
+    text-align:left;
+    list-style:none;
+    margin-bottom: 22px;
+  }
+  .modal-list li{
+    padding: 8px 0;
+    border-bottom: 1px solid #E3D6B8;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .modal-list li:last-child{ border-bottom:none; }
+
+  .modal-close-btn{
+    padding: 12px 28px;
+    background: var(--emerald);
+    color: var(--cream);
+    border:none;
+    border-radius: 20px;
+    font-size: 13px;
+    letter-spacing:0.5px;
+  }
+  .modal-close-btn:hover{ background: var(--emerald-deep); }
+
+  @media (max-width: 480px){
+    .entry-card{ padding: 36px 24px; }
+    .item-card{ flex-direction:column; align-items:flex-start; }
+    .claim-btn{ align-self:flex-end; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ENTRY SCREEN -->
+<div id="entry-screen">
+  <canvas id="confetti-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;"></canvas>
+  <div class="entry-card">
+    <div class="entry-eyebrow">You're Invited</div>
+    <h1>Temi's Birthday<br>Wishlist</h1>
+    <div class="entry-divider"></div>
+    <p>Enter your name to see the list and claim what you'd like to gift. Once something's claimed, it's off the table for everyone else — no duplicates, no spoilers.</p>
+    <input type="text" id="username-input" placeholder="Your name" autocomplete="off" maxlength="30">
+    <button class="btn-primary" onclick="enterApp()">Enter the celebration</button>
+    <div class="entry-error" id="entry-error">Please enter a name to continue.</div>
+    <div class="entry-error" id="storage-warning" style="display:none;">This page isn't connected to shared storage — picks won't sync. Make sure you opened this from the actual link Temi sent, not a downloaded file.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-screen">
+  <div id="admin-banner" class="admin-banner" style="display:none;">You're viewing the admin dashboard — every claim below is visible to you only.</div>
+  <div class="topbar">
+    <h1>🎂 Temi's Wishlist</h1>
+    <div class="who">Signed in as <b id="current-user-label"></b></div>
+  </div>
+  <main id="main-content">
+    <div class="loading">Loading wishlist...</div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="closing-modal">
+  <div class="modal-card" id="closing-modal-content"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, updateDoc, onSnapshot, deleteField
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ====================================================================
+// PASTE YOUR OWN FIREBASE CONFIG HERE (from Firebase Console > Project
+// Settings > General > Your apps > SDK setup and configuration).
+// ====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAs1sqdALHl2cpbZ8uY9LHzyHrJFtXMKN8",
+  authDomain: "temi-wishlist.firebaseapp.com",
+  projectId: "temi-wishlist",
+  storageBucket: "temi-wishlist.firebasestorage.app",
+  messagingSenderId: "460944695707",
+  appId: "1:460944695707:web:328238985af58c8886413e"
+};
+
+let app, db, docRef;
+let firebaseReady = false;
+
+try{
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  docRef = doc(db, "wishlist", "claims");
+  firebaseReady = true;
+}catch(e){
+  console.error("Firebase init failed", e);
+}
+
+let currentUser = '';
+let isAdmin = false;
+let claims = {};
+let unsubscribe = null;
+
+const items = [
+  // Beauty / Skincare
+  { id: 'sunscreen', category: 'Beauty & Skincare', name: 'Water-based sunscreen', note: 'High SPF — daily use' },
+  { id: 'niacinamide', category: 'Beauty & Skincare', name: 'Anoa Niacinamide TXA lotion', note: '' },
+  { id: 'blurring-balm', category: 'Beauty & Skincare', name: 'Blurring balm', note: 'Any well-reviewed brand' },
+  { id: 'cash-beauty', category: 'Beauty & Skincare', name: 'Cash gift', note: '₦10,000 and up' },
+
+  // Tech
+  { id: 'earpods', category: 'Tech & Gadgets', name: 'Wireless earpods', note: '' },
+  { id: 'headphones', category: 'Tech & Gadgets', name: 'Headphones', note: '' },
+  { id: 'laptop-sleeve', category: 'Tech & Gadgets', name: '16" laptop sleeve', note: 'Customized, for a 14" MacBook Pro' },
+  { id: 'usb-hub', category: 'Tech & Gadgets', name: 'USB-C multi-port hub', note: '' },
+
+  // Style
+  { id: 'wigs', category: 'Style & Accessories', name: 'Wig', note: '₦40,000–₦70,000 range' },
+  { id: 'cash-outfit', category: 'Style & Accessories', name: 'Cash toward an outfit', note: '~₦40,000' },
+  { id: 'boho-clothing', category: 'Style & Accessories', name: 'Boho-style clothing', note: 'Anything that fits a boho aesthetic' },
+  { id: 'jewelry', category: 'Style & Accessories', name: 'Gold / boho jewelry, ear cuffs', note: 'Unique statement pieces' },
+  { id: 'boots', category: 'Style & Accessories', name: 'Boots with side purse detail', note: '' },
+  { id: 'jorts', category: 'Style & Accessories', name: 'Flared jorts', note: '' },
+  { id: 'chain-necklaces', category: 'Style & Accessories', name: 'Chain necklaces', note: '' },
+  { id: 'bracelets', category: 'Style & Accessories', name: 'Bracelets', note: 'Top priority' },
+
+  // Hair Care
+  { id: 'seapuri', category: 'Hair Care', name: 'SEAPURI serum', note: '' },
+  { id: 'amla', category: 'Hair Care', name: 'Amla', note: '' },
+  { id: 'bhingraj', category: 'Hair Care', name: 'Bhingraj', note: '' },
+  { id: 'chebe', category: 'Hair Care', name: 'Chebe', note: '' },
+  { id: 'henna', category: 'Hair Care', name: 'Henna', note: 'Not the cheap, harmful kind — quality matters here' },
+  { id: 'moringa', category: 'Hair Care', name: 'Moringa', note: '' },
+  { id: 'fenugreek', category: 'Hair Care', name: 'Fenugreek', note: '' },
+  { id: 'avocado-butter', category: 'Hair Care', name: 'Avocado butter', note: '' },
+  { id: 'aloe-vera', category: 'Hair Care', name: 'Aloe vera', note: 'At least 3 big, fresh pieces' },
+];
+
+// Hair care items other than SEAPURI: if a gifter picks ANY of these, they must pick at least 3 total from this list.
+const HAIR_RULE_IDS = ['amla','bhingraj','chebe','henna','moringa','fenugreek','avocado-butter','aloe-vera'];
+const HAIR_RULE_MIN = 3;
+
+function fireConfetti(){
+  if (typeof confetti !== 'function') return;
+  const colors = ['#C9A876', '#0F5C41', '#C9A227', '#F3EBD9'];
+  confetti({ particleCount: 90, spread: 80, origin: { y: 0.4 }, colors });
+  setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { x: 0.2, y: 0.3 }, colors }), 200);
+  setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { x: 0.8, y: 0.3 }, colors }), 400);
+}
+
+window.addEventListener('load', () => {
+  fireConfetti();
+  if (!firebaseReady || firebaseConfig.apiKey === "YOUR_API_KEY"){
+    document.getElementById('storage-warning').style.display = 'block';
+  }
+});
+
+window.enterApp = async function(){
+  const input = document.getElementById('username-input');
+  const name = input.value.trim();
+  if (!name){
+    document.getElementById('entry-error').style.display = 'block';
+    return;
+  }
+  if (!firebaseReady || firebaseConfig.apiKey === "YOUR_API_KEY"){
+    document.getElementById('entry-error').textContent = "This app isn't connected to a Firebase project yet. See the setup instructions.";
+    document.getElementById('entry-error').style.display = 'block';
+    return;
+  }
+
+  currentUser = name;
+  isAdmin = name.toLowerCase() === 'admintemi';
+
+  document.getElementById('entry-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('current-user-label').textContent = name;
+  if (isAdmin) document.getElementById('admin-banner').style.display = 'block';
+
+  // Make sure the doc exists, then listen for live changes
+  try{
+    await setDoc(docRef, {}, { merge: true });
+  }catch(e){
+    console.error('Could not initialize claims doc', e);
+  }
+
+  unsubscribe = onSnapshot(docRef, (snapshot) => {
+    claims = snapshot.exists() ? (snapshot.data() || {}) : {};
+    renderApp();
+  }, (error) => {
+    console.error('Live sync error', error);
+    alert("Lost connection to the shared list. Check your internet connection and reload.");
+  });
+};
+
+window.toggleClaim = async function(itemId){
+  const current = claims[itemId];
+  try{
+    if (current && current === currentUser){
+      await updateDoc(docRef, { [itemId]: deleteField() });
+    } else if (!current){
+      await updateDoc(docRef, { [itemId]: currentUser });
+    } else {
+      return; // taken by someone else
+    }
+  }catch(e){
+    console.error('Could not save claim', e);
+    alert("Your pick didn't save. Check your internet connection and try again — if it keeps failing, the Firebase project may need its security rules checked.");
+  }
+  // No manual re-render needed — onSnapshot picks up the change automatically
+};
+
+function renderApp(){
+  const main = document.getElementById('main-content');
+
+  if (isAdmin){
+    let rows = items.map(item => {
+      const claimedBy = claims[item.id];
+      return `<tr>
+        <td>${item.category}</td>
+        <td>${item.name}${item.note ? ' <span style="color:#9C917A;">— '+item.note+'</span>' : ''}</td>
+        <td>${claimedBy ? '<span class="claimed-tag">✓ '+escapeHtml(claimedBy)+'</span>' : '<span class="open-tag">Open</span>'}</td>
+      </tr>`;
+    }).join('');
+
+    main.innerHTML = `
+      <p class="intro-line">Live view of every claim — updates automatically as people pick, no refresh needed.</p>
+      <table class="admin-table">
+        <thead><tr><th>Category</th><th>Item</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+    return;
+  }
+
+  const categories = [...new Set(items.map(i => i.category))];
+  let html = `<p class="intro-line">Tap "I've got this" to claim a gift. Once you claim something, no one else can pick the same item.</p>`;
+
+  const myHairPicks = HAIR_RULE_IDS.filter(id => claims[id] === currentUser);
+  const myHairCount = myHairPicks.length;
+
+  categories.forEach(cat => {
+    html += `<div class="category-block">
+      <div class="category-header"><h2>${cat}</h2><div class="category-line"></div></div>`;
+
+    if (cat === 'Hair Care'){
+      if (myHairCount === 0){
+        html += `<div class="hair-note">Heads up: SEAPURI serum can be picked on its own. But if you pick any <em>other</em> item in this section (Amla, Bhingraj, Chebe, Henna, Moringa, Fenugreek, Avocado butter, Aloe vera), you need to pick at least <b>${HAIR_RULE_MIN}</b> of them — not just one.</div>`;
+      } else if (myHairCount > 0 && myHairCount < HAIR_RULE_MIN){
+        html += `<div class="hair-note warn">You've picked ${myHairCount} of ${HAIR_RULE_MIN} required non-SEAPURI hair items. Please pick ${HAIR_RULE_MIN - myHairCount} more from this section before you finish.</div>`;
+      } else if (myHairCount >= HAIR_RULE_MIN){
+        html += `<div class="hair-note ok">You're set — ${myHairCount} hair care items picked, minimum met. ✓</div>`;
+      }
+    }
+
+    items.filter(i => i.category === cat).forEach(item => {
+      const claimedBy = claims[item.id];
+      const mine = claimedBy === currentUser;
+      const takenByOther = claimedBy && !mine;
+      let btnClass = 'claim-btn';
+      let btnLabel = "I've got this";
+      let cardClass = 'item-card';
+
+      if (mine){ btnClass += ' active'; btnLabel = '✓ Claimed by you'; cardClass += ' claimed-by-me'; }
+      else if (takenByOther){ btnClass += ' taken'; btnLabel = 'Already claimed'; cardClass += ' claimed-by-other'; }
+
+      html += `<div class="${cardClass}">
+        <div class="item-text">
+          <div class="name">${item.name}</div>
+          ${item.note ? '<div class="note">'+item.note+'</div>' : ''}
+        </div>
+        <button class="${btnClass}" ${takenByOther ? 'disabled' : ''} onclick="toggleClaim('${item.id}')">${btnLabel}</button>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  html += `<button class="finish-btn" onclick="showClosingSummary()">Finish &amp; confirm my picks</button>`;
+
+  main.innerHTML = html;
+}
+
+window.showClosingSummary = function(){
+  const myPicks = items.filter(i => claims[i.id] === currentUser);
+  const myHairCount = HAIR_RULE_IDS.filter(id => claims[id] === currentUser).length;
+  const modal = document.getElementById('closing-modal');
+  const content = document.getElementById('closing-modal-content');
+
+  if (myHairCount > 0 && myHairCount < HAIR_RULE_MIN){
+    content.innerHTML = `
+      <h2>Not quite yet</h2>
+      <div class="modal-sub">You've picked ${myHairCount} hair care item${myHairCount === 1 ? '' : 's'} that ${myHairCount === 1 ? "isn't" : "aren't"} SEAPURI serum. The rule: pick at least ${HAIR_RULE_MIN} from that section, or none at all (SEAPURI alone is fine). Go back and pick ${HAIR_RULE_MIN - myHairCount} more.</div>
+      <button class="modal-close-btn" onclick="closeModal()">Go back</button>
+    `;
+  } else if (myPicks.length === 0){
+    content.innerHTML = `
+      <h2>Nothing picked yet</h2>
+      <div class="modal-sub">You haven't claimed anything from the list. Take another look before you go — Temi's counting on you. 😭</div>
+      <button class="modal-close-btn" onclick="closeModal()">Back to list</button>
+    `;
+  } else {
+    const list = myPicks.map(i => `<li>🎁 ${i.name}</li>`).join('');
+    content.innerHTML = `
+      <h2>You're all set!</h2>
+      <div class="modal-sub">Here's what you've claimed for Temi's birthday:</div>
+      <ul class="modal-list">${list}</ul>
+      <div class="modal-sub" style="margin-bottom:20px;">Thank you for showing up for her. She'll see your name against these picks — don't let her down. 💚</div>
+      <button class="modal-close-btn" onclick="closeModal()">Close</button>
+    `;
+  }
+
+  modal.classList.add('show');
+};
+
+window.closeModal = function(){
+  document.getElementById('closing-modal').classList.remove('show');
+};
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+document.getElementById('username-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') window.enterApp();
+});
+</script>
+
+</body>
+</html>
