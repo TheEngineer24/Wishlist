@@ -452,7 +452,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, doc, setDoc, updateDoc, onSnapshot, deleteField
+  getFirestore, doc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ====================================================================
@@ -497,6 +497,8 @@ const items = [
   { id: 'headphones', category: 'Tech & Gadgets', name: 'Headphones', note: '' },
   { id: 'laptop-sleeve', category: 'Tech & Gadgets', name: '16" laptop sleeve', note: 'Customized, for a 14" MacBook Pro' },
   { id: 'usb-hub', category: 'Tech & Gadgets', name: 'USB-C multi-port hub', note: '' },
+  { id: 'speaker', category: 'Tech & Gadgets', name: 'Speaker', note: '' },
+  { id: 'powerbank', category: 'Tech & Gadgets', name: 'Laptop powerbank', note: '' },
 
   // Style
   { id: 'wigs', category: 'Style & Accessories', name: 'Wig', note: '₦40,000–₦70,000 range' },
@@ -520,9 +522,9 @@ const items = [
   { id: 'aloe-vera', category: 'Hair Care', name: 'Aloe vera', note: 'At least 3 big, fresh pieces' },
 ];
 
-// Hair care items other than SEAPURI: if a gifter picks ANY of these, they must pick at least 3 total from this list.
-const HAIR_RULE_IDS = ['amla','bhingraj','chebe','henna','moringa','fenugreek','avocado-butter','aloe-vera'];
-const HAIR_RULE_MIN = 3;
+// Hair Care: each gifter must pick at least 1 item from this section (any item counts, including SEAPURI).
+const HAIR_CARE_IDS = items.filter(i => i.category === 'Hair Care').map(i => i.id);
+const HAIR_RULE_MIN = 1;
 
 function fireConfetti(){
   if (typeof confetti !== 'function') return;
@@ -577,14 +579,13 @@ window.enterApp = async function(){
 };
 
 window.toggleClaim = async function(itemId){
-  const current = claims[itemId];
+  const currentList = claims[itemId] || [];
+  const alreadyIn = currentList.includes(currentUser);
   try{
-    if (current && current === currentUser){
-      await updateDoc(docRef, { [itemId]: deleteField() });
-    } else if (!current){
-      await updateDoc(docRef, { [itemId]: currentUser });
+    if (alreadyIn){
+      await updateDoc(docRef, { [itemId]: arrayRemove(currentUser) });
     } else {
-      return; // taken by someone else
+      await updateDoc(docRef, { [itemId]: arrayUnion(currentUser) });
     }
   }catch(e){
     console.error('Could not save claim', e);
@@ -598,11 +599,14 @@ function renderApp(){
 
   if (isAdmin){
     let rows = items.map(item => {
-      const claimedBy = claims[item.id];
+      const pickers = claims[item.id] || [];
+      const status = pickers.length
+        ? '<span class="claimed-tag">✓ ' + pickers.map(escapeHtml).join(', ') + '</span>'
+        : '<span class="open-tag">Open</span>';
       return `<tr>
         <td>${item.category}</td>
         <td>${item.name}${item.note ? ' <span style="color:#9C917A;">— '+item.note+'</span>' : ''}</td>
-        <td>${claimedBy ? '<span class="claimed-tag">✓ '+escapeHtml(claimedBy)+'</span>' : '<span class="open-tag">Open</span>'}</td>
+        <td>${status}</td>
       </tr>`;
     }).join('');
 
@@ -617,10 +621,9 @@ function renderApp(){
   }
 
   const categories = [...new Set(items.map(i => i.category))];
-  let html = `<p class="intro-line">Tap "I've got this" to claim a gift. Once you claim something, no one else can pick the same item.</p>`;
+  let html = `<p class="intro-line">Tap "I've got this" to claim a gift. Multiple people can pick the same thing — you'll see how many others already have.</p>`;
 
-  const myHairPicks = HAIR_RULE_IDS.filter(id => claims[id] === currentUser);
-  const myHairCount = myHairPicks.length;
+  const myHairCount = HAIR_CARE_IDS.filter(id => (claims[id] || []).includes(currentUser)).length;
 
   categories.forEach(cat => {
     html += `<div class="category-block">
@@ -628,31 +631,34 @@ function renderApp(){
 
     if (cat === 'Hair Care'){
       if (myHairCount === 0){
-        html += `<div class="hair-note">Heads up: SEAPURI serum can be picked on its own. But if you pick any <em>other</em> item in this section (Amla, Bhingraj, Chebe, Henna, Moringa, Fenugreek, Avocado butter, Aloe vera), you need to pick at least <b>${HAIR_RULE_MIN}</b> of them — not just one.</div>`;
-      } else if (myHairCount > 0 && myHairCount < HAIR_RULE_MIN){
-        html += `<div class="hair-note warn">You've picked ${myHairCount} of ${HAIR_RULE_MIN} required non-SEAPURI hair items. Please pick ${HAIR_RULE_MIN - myHairCount} more from this section before you finish.</div>`;
-      } else if (myHairCount >= HAIR_RULE_MIN){
-        html += `<div class="hair-note ok">You're set — ${myHairCount} hair care items picked, minimum met. ✓</div>`;
+        html += `<div class="hair-note">Please pick at least <b>${HAIR_RULE_MIN}</b> item from this section before you finish.</div>`;
+      } else {
+        html += `<div class="hair-note ok">You're set — ${myHairCount} hair care item${myHairCount === 1 ? '' : 's'} picked. ✓</div>`;
       }
     }
 
     items.filter(i => i.category === cat).forEach(item => {
-      const claimedBy = claims[item.id];
-      const mine = claimedBy === currentUser;
-      const takenByOther = claimedBy && !mine;
+      const pickers = claims[item.id] || [];
+      const mine = pickers.includes(currentUser);
+      const otherCount = pickers.length - (mine ? 1 : 0);
       let btnClass = 'claim-btn';
       let btnLabel = "I've got this";
       let cardClass = 'item-card';
 
-      if (mine){ btnClass += ' active'; btnLabel = '✓ Claimed by you'; cardClass += ' claimed-by-me'; }
-      else if (takenByOther){ btnClass += ' taken'; btnLabel = 'Already claimed'; cardClass += ' claimed-by-other'; }
+      if (mine){ btnClass += ' active'; btnLabel = '✓ You picked this'; cardClass += ' claimed-by-me'; }
+
+      let countNote = '';
+      if (otherCount > 0){
+        countNote = `<div class="note" style="color:var(--emerald); margin-top:4px;">${otherCount} other${otherCount === 1 ? ' person has' : ' people have'} also picked this</div>`;
+      }
 
       html += `<div class="${cardClass}">
         <div class="item-text">
           <div class="name">${item.name}</div>
           ${item.note ? '<div class="note">'+item.note+'</div>' : ''}
+          ${countNote}
         </div>
-        <button class="${btnClass}" ${takenByOther ? 'disabled' : ''} onclick="toggleClaim('${item.id}')">${btnLabel}</button>
+        <button class="${btnClass}" onclick="toggleClaim('${item.id}')">${btnLabel}</button>
       </div>`;
     });
 
@@ -665,15 +671,15 @@ function renderApp(){
 }
 
 window.showClosingSummary = function(){
-  const myPicks = items.filter(i => claims[i.id] === currentUser);
-  const myHairCount = HAIR_RULE_IDS.filter(id => claims[id] === currentUser).length;
+  const myPicks = items.filter(i => (claims[i.id] || []).includes(currentUser));
+  const myHairCount = HAIR_CARE_IDS.filter(id => (claims[id] || []).includes(currentUser)).length;
   const modal = document.getElementById('closing-modal');
   const content = document.getElementById('closing-modal-content');
 
-  if (myHairCount > 0 && myHairCount < HAIR_RULE_MIN){
+  if (myHairCount < HAIR_RULE_MIN){
     content.innerHTML = `
       <h2>Not quite yet</h2>
-      <div class="modal-sub">You've picked ${myHairCount} hair care item${myHairCount === 1 ? '' : 's'} that ${myHairCount === 1 ? "isn't" : "aren't"} SEAPURI serum. The rule: pick at least ${HAIR_RULE_MIN} from that section, or none at all (SEAPURI alone is fine). Go back and pick ${HAIR_RULE_MIN - myHairCount} more.</div>
+      <div class="modal-sub">You haven't picked anything from the Hair Care section yet. Please go back and pick at least ${HAIR_RULE_MIN} item from there before finishing.</div>
       <button class="modal-close-btn" onclick="closeModal()">Go back</button>
     `;
   } else if (myPicks.length === 0){
@@ -712,4 +718,4 @@ document.getElementById('username-input').addEventListener('keydown', (e) => {
 </script>
 
 </body>
-</html>
+      </html>
