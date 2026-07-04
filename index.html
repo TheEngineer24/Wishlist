@@ -656,19 +656,47 @@ async function proceedToApp(name, adminFlag){
   document.getElementById('current-user-label').textContent = name;
   if (isAdmin) document.getElementById('admin-banner').style.display = 'block';
 
+  const mainEl = document.getElementById('main-content');
+  let connected = false;
+
+  // If nothing has loaded within 8 seconds, show a visible diagnostic
+  // message instead of leaving people staring at "Loading wishlist..."
+  // forever with no way to tell what's wrong.
+  const timeoutId = setTimeout(() => {
+    if (!connected){
+      mainEl.innerHTML = `
+        <div class="loading">
+          Still trying to connect to the shared list...<br><br>
+          <span style="font-size:12px; color:#9C917A;">
+            If this doesn't resolve, try: a different wifi/data connection,
+            a different browser, or reloading the page. Signed in as: ${escapeHtml(name)}${adminFlag ? ' (admin)' : ''}.
+          </span>
+        </div>`;
+    }
+  }, 8000);
+
   // Make sure the doc exists, then listen for live changes
   try{
     await setDoc(docRef, {}, { merge: true });
   }catch(e){
     console.error('Could not initialize claims doc', e);
+    clearTimeout(timeoutId);
+    mainEl.innerHTML = `<div class="loading">Couldn't reach the shared list.<br><br>
+      <span style="font-size:12px; color:#A13B2C;">Error: ${escapeHtml(e.message || String(e))}</span></div>`;
+    return;
   }
 
   unsubscribe = onSnapshot(docRef, (snapshot) => {
+    connected = true;
+    clearTimeout(timeoutId);
     claims = snapshot.exists() ? (snapshot.data() || {}) : {};
     renderApp();
   }, (error) => {
+    connected = true;
+    clearTimeout(timeoutId);
     console.error('Live sync error', error);
-    alert("Lost connection to the shared list. Check your internet connection and reload.");
+    mainEl.innerHTML = `<div class="loading">Lost connection to the shared list.<br><br>
+      <span style="font-size:12px; color:#A13B2C;">Error: ${escapeHtml(error.message || String(error))}</span></div>`;
   });
 };
 
@@ -864,4 +892,4 @@ document.getElementById('passcode-input').addEventListener('keydown', (e) => {
 </script>
 
 </body>
-</html>
+      </html>
