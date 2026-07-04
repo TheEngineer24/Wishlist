@@ -492,6 +492,18 @@
   <div class="modal-card" id="closing-modal-content"></div>
 </div>
 
+<div class="modal-overlay" id="passcode-modal">
+  <div class="modal-card">
+    <h2>Admin Access</h2>
+    <div class="modal-sub">Enter the admin passcode to continue.</div>
+    <input type="password" id="passcode-input" placeholder="Passcode" autocomplete="off"
+      style="width:100%; padding:14px 16px; border:1px solid var(--tan); border-radius:2px; font-family:'Jost', sans-serif; font-size:15px; background:#fff; color:var(--ink); margin-bottom:14px; outline:none;">
+    <div class="entry-error" id="passcode-error" style="margin-bottom:14px;">Incorrect passcode. Try again, or go back.</div>
+    <button class="btn-primary" onclick="submitPasscode()">Continue</button>
+    <button class="modal-close-btn" style="background:transparent; color:var(--ink-soft); border:1.5px solid var(--tan); margin-top:10px;" onclick="cancelPasscode()">Go back</button>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -527,6 +539,7 @@ let currentUser = '';
 let isAdmin = false;
 let claims = {};
 let unsubscribe = null;
+let pendingAdminName = '';
 
 // Reserved field name in the shared Firestore doc used to store the list
 // of item ids that the admin has blocked from further claiming.
@@ -602,20 +615,41 @@ window.enterApp = async function(){
     return;
   }
 
-  currentUser = name;
   const wantsAdmin = name.toLowerCase() === 'admintemi';
 
   if (wantsAdmin){
-    const code = prompt('Enter the admin passcode:');
-    if (code !== ADMIN_PASSCODE){
-      alert('Incorrect passcode. You will be signed in as a regular guest instead.');
-      isAdmin = false;
-    } else {
-      isAdmin = true;
-    }
-  } else {
-    isAdmin = false;
+    // Show a non-blocking modal instead of the native prompt(). A blocking
+    // prompt() freezes the JS thread, which on some mobile browsers can
+    // stall the Firestore connection that starts right after — leaving
+    // the app stuck on "Loading wishlist..." forever.
+    pendingAdminName = name;
+    document.getElementById('passcode-input').value = '';
+    document.getElementById('passcode-error').style.display = 'none';
+    document.getElementById('passcode-modal').classList.add('show');
+    return;
   }
+
+  await proceedToApp(name, false);
+};
+
+window.submitPasscode = async function(){
+  const code = document.getElementById('passcode-input').value;
+  if (code !== ADMIN_PASSCODE){
+    document.getElementById('passcode-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('passcode-modal').classList.remove('show');
+  await proceedToApp(pendingAdminName, true);
+};
+
+window.cancelPasscode = function(){
+  document.getElementById('passcode-modal').classList.remove('show');
+  pendingAdminName = '';
+};
+
+async function proceedToApp(name, adminFlag){
+  currentUser = name;
+  isAdmin = adminFlag;
 
   document.getElementById('entry-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'block';
@@ -822,6 +856,10 @@ function escapeHtml(str){
 
 document.getElementById('username-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') window.enterApp();
+});
+
+document.getElementById('passcode-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') window.submitPasscode();
 });
 </script>
 
